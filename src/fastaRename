@@ -1,0 +1,109 @@
+#! /usr/bin/env python
+# -*- coding: utf-8 -*-
+
+########################################################################################
+#                                                                                      #
+#    Copyright (C) 2011                                                                #
+#    Author: Bertrand Néron                                                            #
+#    Organization:'Centre Informatique en Biologie', Institut Pasteur, Paris.          #
+#                                                                                      #
+#    This program is free software: you can redistribute it and/or modify              #
+#    it under the terms of the GNU General Public License version as published by      #
+#    the Free Software Foundation, in the version 3 of the License.                    #
+#                                                                                      #
+#    This program is distributed in the hope that it will be useful,                   #
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of                    #
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                     #
+#    GNU General Public License for more details.                                      #
+#                                                                                      #
+#    You should have received a copy of the GNU General Public License                 #
+#    along with this program (Please refer to the COPYING document).                   #
+#    If not, see <http://www.gnu.org/licenses/>.                                       #
+########################################################################################
+
+
+from itertools import groupby
+
+def fasta_iter(fasta_file):
+    """
+    @author: http://biostar.stackexchange.com/users/36/brentp
+    given a fasta file. yield tuples of header, sequence
+    """
+    # ditch the boolean (x[0]) and just keep the header or sequence since
+    # we know they alternate.
+    faiter = (x[1] for x in groupby(fasta_file , lambda line: line[0] == ">"))
+    for header in faiter:
+        # drop the ">"
+        header = header.next()[1:].strip()
+        # join all sequence lines to one.
+        seq = "\n".join(s.strip() for s in faiter.next())
+        yield header, seq
+        
+
+def rename_fasta( fasta_file , renamed_fasta , mapping_file ):
+    iter = fasta_iter( fasta_file )
+    seq_nb = 0
+    for fasta_sequence in iter:
+        old_header, seq = fasta_sequence
+        new_header = "ID_%d" %seq_nb
+        renamed_fasta.write( ">%s\n%s\n" %(new_header, seq) )
+        mapping_file.write( "%s\t%s\n"%(new_header, old_header) )
+        seq_nb+=1
+        
+
+if __name__ ==  '__main__':
+
+    from optparse import OptionParser
+    import sys
+    import os.path
+    
+    usage="""
+       %prog [options] fastaRename 
+       parse a file with fasta sequences
+       replace the identifier of a fasta sequences by a short identifier
+       and generate a file with renamed fasta sequences and a file of mapping
+"""
+    parser = OptionParser( usage= usage )       
+    parser.add_option( "-m" , "--map" ,
+                       action = "store",
+                       type= "string" ,
+                       dest = "mapping_file_name" ,
+                       help = "specify the file to store the mapping ")
+    parser.add_option( "-o" , "--fasta-out" ,
+                       action = "store",
+                       type= "string" ,
+                       dest = "renamed_fasta_name" ,
+                       help = "specify the file with the renamed fasta sequences")
+    
+    options, args = parser.parse_args()
+    
+    if len( args )!= 1 :
+        parser.print_help() 
+        sys.exit(1)
+    
+    fasta_file_name = args[0]
+    renamed_fasta_name = os.path.splitext( fasta_file_name )[0] + ".rename.fasta"
+    mapping_file_name = os.path.splitext(fasta_file_name)[0] + ".map"
+     
+    if options.renamed_fasta_name:
+        renamed_fasta_name = options.renamed_fasta_name
+    if options.mapping_file_name:
+        mapping_file_name = options.mapping_file_name
+           
+    try:
+        fasta_file = open( fasta_file_name ,'r' )
+    except IOError , err:
+        print >> sys.stderr , "cannot open fasta file :" , err  
+        parser.print_help() 
+        sys.exit(1) 
+
+    try:    
+        with open( fasta_file_name ,'r' ) as fasta_file:
+            with open( renamed_fasta_name ,'w' ) as renamed_fasta:
+                with open( mapping_file_name ,'w' ) as mapping_file:
+                    rename_fasta( fasta_file , renamed_fasta , mapping_file )
+        
+    except Exception, err:
+        print >> sys.stderr , err
+        sys.exit(1)       
+       
