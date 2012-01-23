@@ -54,7 +54,7 @@ class check_and_build( build ):
 require_pyt = [ 'python (>=2.5, <3.0)' ]
 
 setup(name        = 'fastaRename',
-      version     =  time.strftime("%Y%m%d"),
+      version     =  '1.0',
       author      = "Néron Bertrand",
       author_email = "bneron@pasteur.fr" ,
       license      = "GPLv3" ,
